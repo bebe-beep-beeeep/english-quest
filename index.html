@@ -20,12 +20,12 @@ h2,h3{margin:4px 0}
 </style></head><body><div id="app">
 <div class="c">⚡ XP: <b id="xp">0</b> · English Quest <button class="a" style="float:right" onclick="settings()">⚙️ ИИ</button></div>
 <section id="watch">
- <div class="c"><input id="url" placeholder="Ссылка на YouTube"><button onclick="ytLoad()">▶ Видео + авто-субтитры</button>
+ <div class="c"><input id="url" placeholder="Ссылка на YouTube"><button onclick="ytLoad()">▶ Загрузить видео</button>
  <div class="m">Или свои файлы. Видео: <input type="file" id="fv" accept="video/*"> Субтитры .srt/.vtt: <input type="file" id="fs" accept=".srt,.vtt,.txt"></div>
- <textarea id="paste" rows="3" placeholder="Или вставь текст: субтитры, статью, главу книги"></textarea><button class="a" onclick="usePaste()">Разобрать текст</button></div>
- <div id="stage"></div>
- <div class="c" id="ctl" hidden>Скорость: <select id="sp" style="width:auto" onchange="rate(+this.value)"><option value="0.5">0.5</option><option value="0.75">0.75</option><option value="1" selected>1</option></select>
- <div class="m">Тап по слову = перевод в контексте. ▶ одна реплика · 🔁 цикл · 🎤 повтори за героем (shadowing) · 🧠 разбор · 🔊 озвучка</div></div>
+ <textarea id="paste" rows="3" placeholder="Или вставь текст: субтитры, статью, главу книги"></textarea><button class="a" onclick="usePaste()">Разобрать текст</button><div class="m">Как получить субтитры: на YouTube «Ещё» → «Посмотреть расшифровку», скопируй всё и вставь сюда. Дальше: тап по слову = перевод · ▶ реплика · 🔁 цикл · 🎤 повтори за героем · 🇷🇺 перевод строки · 🧠 разбор в Claude.</div></div>
+ <div id="stk" style="position:sticky;top:0;z-index:3;background:var(--bg)"><div id="stage"></div>
+ <div class="c" id="ctl" hidden><div id="cap" style="font-size:19px;line-height:1.4;min-height:28px;margin-bottom:6px"></div>Скорость: <select id="sp" style="width:auto" onchange="rate(+this.value)"><option value="0.5">0.5</option><option value="0.75">0.75</option><option value="1" selected>1</option></select>
+ </div></div>
  <div id="tr"></div>
 </section>
 <section id="gram" hidden></section><section id="deck" hidden></section><section id="chat" hidden></section>
@@ -45,7 +45,7 @@ const dec=s=>{const t=document.createElement('textarea');t.innerHTML=s;return t.
 const fmt=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
 const mic=cb=>{const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return alert('Для речи нужен Chrome или Edge');const r=new R();r.lang='en-US';r.onresult=e=>cb(e.results[0][0].transcript);r.onerror=()=>pop('Не расслышала, попробуй ещё раз');r.start()};
 async function ai(system,messages){const P=G('prov')||{p:'gemini',k:'',m:''};
- if(!P.k){settings();throw new Error('Сначала добавь бесплатный ключ в ⚙️')}
+ if(!P.k)throw new Error('Для этого раздела нужен ИИ. Он работает в версии внутри Claude: claude.ai/artifact/2wgGBqHKTaHM7t9Gbi7a5f')
  let r,d;
  if(P.p=='gemini'){r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+(P.m||'gemini-flash-latest')+':generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':P.k},body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:messages.map(m=>({role:m.role=='user'?'user':'model',parts:[{text:m.content}]}))})});
   d=await r.json();if(d.error)throw new Error(d.error.message);return d.candidates[0].content.parts.map(p=>p.text||'').join('')}
@@ -76,6 +76,58 @@ function askTopic(){const t=Q.t+(Q.cur?'. Вопрос: '+Q.cur:'');PS=TS+' Те
 let L=[],cur=-1,LP=null,STOP=null,M={k:0};
 const now=()=>M.k=='yt'?M.yt.getCurrentTime():$('#vid').currentTime;
 const seek=t=>M.k=='yt'?M.yt.seekTo(t,true):($('#vid').currentTime=t);
+const play=()=>M.k=='yt'?M.yt.playVideo():$('#vid').play();
+const pause=()=>M.k=='yt'?M.yt.pauseVideo():$('#vid').pause();
+const rate=r=>M.k=='yt'?M.yt.setPlaybackRate(r):($('#vid').playbackRate=r);
+const ytId=u=>{const m=u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/);return m&&m[1]};
+const ytApi=()=>new Promise(ok=>{if(window.YT&&YT.Player)return ok();window.onYouTubeIframeAPIReady=ok;const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.head.appendChild(s)});
+async function ytLoad(){const id=ytId($('#url').value);if(!id)return alert('Не вижу ссылку на YouTube');
+ $('#stage').innerHTML='<div id="yt"></div>';M.k='yt';await ytApi();M.yt=new YT.Player('yt',{videoId:id,playerVars:{playsinline:1,cc_load_policy:0}});
+ $('#tr').innerHTML='<div class="c">✅ Видео загружено. Теперь добавь субтитры: на YouTube «Ещё» → «Посмотреть расшифровку», скопируй текст с временем, вставь в поле выше и нажми «Разобрать текст».</div>'}
+$('#fv').onchange=e=>{const f=e.target.files[0];if(!f)return;M.k='v';$('#stage').innerHTML='<video id="vid" controls playsinline></video>';$('#vid').src=URL.createObjectURL(f)};
+$('#fs').onchange=async e=>{const f=e.target.files[0];if(f)setLines(parse(await f.text()))};
+function parse(t){t=t.replace(/\r/g,'');const out=[],re=/(?:(\d+):)?(\d+):(\d+)[.,](\d+)\s*-->\s*(?:(\d+):)?(\d+):(\d+)[.,](\d+)[^\n]*\n([\s\S]*?)(?=\n\s*\n|$)/g,T=(h,m,s,f)=>(+h||0)*3600+m*60+ +s+ +('0.'+f);let m;
+ while(m=re.exec(t)){const x=m[9].replace(/<[^>]+>/g,'').replace(/\n/g,' ').trim();if(x)out.push({s:T(m[1],m[2],m[3],m[4]),e:T(m[5],m[6],m[7],m[8]),t:x})}return out}
+function parseYT(t){const out=[];let c=null;for(const l of t.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean)){const m=l.match(/^(?:(\d+):)?(\d{1,2}):(\d{2})(?:\s+(.*))?$/);if(m){if(c&&c.t)out.push(c);c={s:(+m[1]||0)*3600+m[2]*60+ +m[3],t:m[4]||''}}else if(c)c.t+=(c.t?' ':'')+l}if(c&&c.t)out.push(c);out.forEach((x,i)=>x.e=out[i+1]?out[i+1].s:x.s+4);return out}
+function usePaste(){const t=$('#paste').value;if(!t.trim())return;let a=parse(t);if(!a.length)a=parseYT(t);if(!a.length)a=(t.replace(/\s+/g,' ').match(/[^.!?]+[.!?]*/g)||[]).map(x=>({s:null,e:null,t:x.trim()})).filter(x=>x.t);setLines(a)}
+function setLines(a,auto){if(auto&&a.length){const d=a.map(x=>x.e-x.s).sort((p,q)=>p-q)[a.length>>1];if(d>50)a=a.map(x=>({s:x.s/1000,e:x.e/1000,t:x.t}))}
+ a.forEach(x=>x.t=dec(dec(x.t)).replace(/\s+/g,' '));L=a;cur=-1;LP=null;render()}
+function render(){$('#tr').innerHTML=L.map((l,i)=>`<div class="ln" id="l${i}" onclick="sel(${i})"><span class="m">${l.s!=null?fmt(l.s):'¶'}</span> ${l.t.split(/(\s+)/).map(w=>/\S/.test(w)?`<span class="w" onclick="word(event,${i})">${esc(w)}</span>`:w).join('')}<div class="act">${l.s!=null?`<button class="a" onclick="playLine(${i})">▶</button><button class="a" onclick="loopLine(${i})">🔁</button>`:''}<button class="a" onclick="shadow(${i})">🎤</button><button class="a" onclick="lineTr(${i})">🇷🇺</button><button class="a" onclick="explain(${i})">🧠</button><button class="a" onclick="say(L[${i}].t)">🔊</button></div></div>`).join('');$('#ctl').hidden=false}
+function sel(i){document.querySelectorAll('.ln').forEach(x=>x.classList.remove('on'));const e=$('#l'+i);if(e)e.classList.add('on');cur=i;cap(i)}
+function cap(i){const e=$('#cap');if(!e||!L[i])return;e.innerHTML=L[i].t.split(/(\s+)/).map(w=>/\S/.test(w)?`<span class="w" onclick="word(event,${i})">${esc(w)}</span>`:w).join('')}
+function playLine(i){seek(L[i].s);play();STOP=L[i].e;LP=null}
+function loopLine(i){LP=LP===i?null:i;if(LP!=null){seek(L[i].s);play()}}
+function word(ev,i){ev.stopPropagation();const w=ev.target.textContent.replace(/[^\w']/g,'');if(!w)return;try{pause()}catch(e){}wordInfo(w,L[i].t)}
+async function wordInfo(w,ctx){const key=w.toLowerCase().replace(/[^a-z]/g,'');pop('Ищу…');let tr='',ph='',def='';
+ try{tr=(await(await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(key)+'&langpair=en|ru')).json()).responseData.translatedText}catch(e){}
+ try{const x=(await(await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+key)).json())[0];ph=x.phonetic||((x.phonetics||[]).find(p=>p.text)||{}).text||'';def=x.meanings.slice(0,2).map(m=>'<i>'+esc(m.partOfSpeech)+'</i>: '+esc(m.definitions[0].definition)).join('<br>')}catch(e){}
+ LW={w:key,ctx,tr};
+ pop(`<h3>${esc(w)} <span class="m">${esc(ph)}</span></h3><div>🇷🇺 ${esc(tr)||'—'}</div><div class="m">${def}</div><div class="m">Это перевод слова без контекста.</div><button onclick="say('${key}')">🔊</button> <button onclick="saveW()">+ в колоду</button> <button class="a" onclick="askClaude('Объясни слово «'+LW.w+'» в этом предложении: '+LW.ctx)">Спросить Клода</button>`)}
+function saveW(){S.deck[LW.w]={ctx:LW.ctx,tr:LW.tr,b:0,n:0};sv();gain(3);$('#pb').insertAdjacentHTML('beforeend','<div class="m">Добавлено в колоду ✅</div>')}
+function askClaude(q){const p=ES+'\n\n'+q;try{navigator.clipboard.writeText(p)}catch(e){}pop('Открываю Claude. Если вопрос не появился, просто вставь его (он скопирован) и отправь.');window.open('https://claude.ai/new?q='+encodeURIComponent(p),'_blank')}
+function explain(i){const c=[L[i-1],L[i],L[i+1]].filter(Boolean).map(x=>x.t).join(' | ');askClaude('Разбери строку из видео: '+L[i].t+'\nКонтекст: '+c)}
+async function lineTr(i){pop('Перевожу…');try{const r=await(await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(L[i].t)+'&langpair=en|ru')).json();pop('<div>'+esc(L[i].t)+'</div><h3>'+esc(r.responseData.translatedText)+'</h3><div class="m">Машинный перевод, может быть неточным.</div><button class="a" onclick="explain('+i+')">Разбор в Claude</button>')}catch(e){pop('Не получилось перевести')}}
+function shadow(i){try{pause()}catch(e){}pop('🎤 Говори…');mic(h=>{h=norm(h);const tw=norm(L[i].t).split(' '),hs=new Set(h.split(' ')),pc=Math.round(tw.filter(w=>hs.has(w)).length/tw.length*100);
+ pop(`<h3>${pc}% совпало</h3>${tw.map(w=>`<span style="color:${hs.has(w)?'var(--l)':'var(--r)'}">${w}</span>`).join(' ')}<div class="m">Услышала: ${esc(h)}</div><button onclick="shadow(${i})">Ещё раз</button> <button class="a" onclick="explain(${i})">🧠 Как это звучит</button>`);gain(pc>=70?10:3)})}
+setInterval(()=>{if(!L.length||L[0].s==null||!M.k)return;let t;try{t=now()}catch(e){return}
+ if(STOP!=null&&t>=STOP){pause();STOP=null}if(LP!=null&&t>=L[LP].e)seek(L[LP].s);
+ const i=L.findIndex(l=>t>=l.s&&t<l.e);if(i>=0&&i!=cur){sel(i);$('#l'+i).scrollIntoView({block:'nearest',behavior:'smooth'})}},250);
+/* грамматика */
+let Q={};
+function gramHome(){$('#gram').innerHTML='<div class="c"><b>Грамматика с нуля</b><div class="m">Выбери тему: подробный урок создаётся и сохраняется. Потом 7 вопросов и проверка твоих предложений.</div></div><div class="c">'+TOP.map((t,i)=>`<button class="${S.les[t]?'':'a'}" onclick="lesson(${i})">${t}${S.les[t]&&S.les[t].done?' ✅':''}</button>`).join(' ')+'</div>'}
+async function lesson(i){const t=TOP[i];let d=S.les[t];if(!d){$('#gram').innerHTML='<div class="c">Готовлю подробный урок… 15–30 секунд</div>';
+ try{d=JSON.parse((await ai(GS,[{role:'user',content:'Тема: '+t}])).replace(/```json|```/g,'').trim());S.les[t]=d;sv()}catch(e){$('#gram').innerHTML='<div class="c">⚠️ Не вышло, попробуй ещё раз.</div><button onclick="gramHome()">Назад</button>';return}}
+ Q={t,d,i:0,ok:0,cur:''};showLesson()}
+function showLesson(){const{t,d}=Q;$('#gram').innerHTML=`<div class="c"><button class="a" onclick="gramHome()">← Темы</button><h2>${t}</h2><div>${md(d.rule)}</div></div><div class="c"><b>Примеры</b>${d.examples.map(e=>`<div>${esc(e[0])} <button class="a" data-t="${esc(e[0])}" onclick="say(this.dataset.t)">🔊</button><div class="m">${esc(e[1])}</div></div>`).join('')}</div><div class="c"><b>Частые ошибки</b>${d.mistakes.map(m=>'<div>⚠️ '+md(m)+'</div>').join('')}</div><button onclick="Q.i=0;Q.ok=0;qz()">Проверить себя</button> <button class="a" onclick="askTopic()">🤖 Спросить про тему</button>`}
+function qz(a){const d=Q.d;if(Q.i>=d.quiz.length)return fin();const q=d.quiz[Q.i];Q.cur=q.q;
+ $('#gram').innerHTML=`<div class="c"><div class="m">${Q.i+1}/${d.quiz.length}</div><h3>${esc(q.q)}</h3>${q.opts.map((o,k)=>`<button class="a ${a!=null?(k==q.a?'ok':k==a?'no':''):''}" style="display:block;width:100%;text-align:left;margin:6px 0" ${a!=null?'disabled':''} onclick="qa(${k})">${esc(o)}</button>`).join('')}${a!=null?`<div>💡 ${md(q.why)}</div><button onclick="Q.i++;qz()">Дальше</button> <button class="a" onclick="askTopic()">🤖 Не понял</button>`:''}</div>`}
+function qa(k){if(k==Q.d.quiz[Q.i].a){Q.ok++;gain(8)}qz(k)}
+function fin(){S.les[Q.t].done=1;sv();gain(20);$('#gram').innerHTML=`<div class="c"><h3>Результат: ${Q.ok}/${Q.d.quiz.length}</h3><p>Теперь главное: используй правило сама. Напиши 3 своих предложения по теме «${Q.t}» (про музыку, жизнь, планы).</p><textarea id="wr" rows="4"></textarea><button onclick="chk()">Проверить</button> <button class="a" onclick="gramHome()">К темам</button></div>`}
+function chk(){const v=$('#wr').value.trim();if(v)tutor(TS+' Проверь предложения ученицы по теме «'+Q.t+'»: для каждого ✅ или ❌, исправление и ПОЧЕМУ. В конце дай мини-задание.',v)}
+/* слова */
+function deckShow(){const t=Date.now(),due=Object.keys(S.deck).filter(w=>S.deck[w].n<=t);
+ if(!due.length)return $('#deck').innerHTML='<div class="c">Карточек на сейчас нет. Тапай по словам в видео и текстах: они попадут сюда и вернутся через 1, 2, 4, 7 и 14 дней.</div>';
+ const w=due[0],c=S.deck[w];$('#deck').innerHTML=`<div class="c"><h2>${esc(w)}</h2><div class="m">Вспомни перевод. Осталось: ${due.length}</div><div id="bk" hidden><div class="m">${esc(c.ctx)}</div>${md(c.tr)}</div><button 
 const play=()=>M.k=='yt'?M.yt.playVideo():$('#vid').play();
 const pause=()=>M.k=='yt'?M.yt.pauseVideo():$('#vid').pause();
 const rate=r=>M.k=='yt'?M.yt.setPlaybackRate(r):($('#vid').playbackRate=r);
