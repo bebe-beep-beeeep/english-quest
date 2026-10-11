@@ -1,4 +1,5 @@
 <!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>English Quest</title>
+<script>addEventListener("error",function(e){var s=document.getElementById("st");if(s){s.style.background="#b00";s.textContent="ОШИБКА СКРИПТА: "+e.message}});</script>
 <style>
 :root{--bg:#14102a;--c:#201a40;--ink:#f4f1ff;--m:#a79fd0;--p:#ff4fa3;--l:#c6ff3d;--r:#ff6b6b}
 *{box-sizing:border-box}[hidden]{display:none!important}
@@ -17,8 +18,8 @@ nav button{flex:1;margin:0 3px;background:none;color:var(--m)}nav button.on{back
 .ok{background:#27401f!important}.no{background:#451f2a!important}
 #pop{position:fixed;left:8px;right:8px;bottom:64px;max-height:55vh;overflow:auto;border:2px solid var(--p);z-index:5;max-width:880px;margin:auto}
 h2,h3{margin:4px 0}
-</style></head><body><div id="app">
-<div class="c">⚡ XP: <b id="xp">0</b> · English Quest v3 <button class="a" style="float:right" onclick="settings()">⚙️ ИИ</button></div>
+</style></head><body><div id="st" style="background:#c60;color:#fff;padding:8px;font:14px system-ui">⏳ Запуск… Если эта плашка не исчезла, скрипт не запустился.</div><div id="app">
+<div class="c">⚡ XP: <b id="xp">0</b> · English Quest v4 <button class="a" style="float:right" onclick="settings()">⚙️ ИИ</button></div>
 <section id="watch">
  <div class="c"><input id="url" placeholder="Ссылка на YouTube"><button onclick="ytLoad()">▶ Загрузить видео</button>
  <div class="m">Или свои файлы. Видео: <input type="file" id="fv" accept="video/*"> Субтитры .srt/.vtt: <input type="file" id="fs" accept=".srt,.vtt,.txt"></div>
@@ -33,7 +34,7 @@ h2,h3{margin:4px 0}
 <div id="pop" class="c" hidden><button class="a" style="float:right" onclick="$('#pop').hidden=true">✕</button><div id="pb"></div></div>
 <nav><button data-t="watch">🎬 Смотреть</button><button data-t="gram">🧠 Грамматика</button><button data-t="deck">🃏 Слова</button><button data-t="chat">💬 Чат</button></nav>
 <script>
-window.addEventListener('error',e=>{const d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;right:0;background:#b00;color:#fff;padding:8px;z-index:99;font-size:12px';d.textContent='Ошибка: '+e.message;document.body.appendChild(d)});
+document.getElementById('st').remove();
 const $=s=>document.querySelector(s),G=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
 let S=G('eq')||{xp:0,deck:{},les:{}};S.deck=S.deck||{};S.les=S.les||{};
 const sv=()=>{try{localStorage.setItem('eq',JSON.stringify(S))}catch(e){}};
@@ -126,4 +127,4 @@ function showLesson(){const{t,d}=Q;$('#gram').innerHTML=`<div class="c"><button 
 function qz(a){const d=Q.d;if(Q.i>=d.quiz.length)return fin();const q=d.quiz[Q.i];Q.cur=q.q;
  $('#gram').innerHTML=`<div class="c"><div class="m">${Q.i+1}/${d.quiz.length}</div><h3>${esc(q.q)}</h3>${q.opts.map((o,k)=>`<button class="a ${a!=null?(k==q.a?'ok':k==a?'no':''):''}" style="display:block;width:100%;text-align:left;margin:6px 0" ${a!=null?'disabled':''} onclick="qa(${k})">${esc(o)}</button>`).join('')}${a!=null?`<div>💡 ${md(q.why)}</div><button onclick="Q.i++;qz()">Дальше</button> <button class="a" onclick="askTopic()">🤖 Не понял</button>`:''}</div>`}
 function qa(k){if(k==Q.d.quiz[Q.i].a){Q.ok++;gain(8)}qz(k)}
-function fin(){S.les[Q.t].done=1;sv();gain(20);$('#gram').innerHTML=`<div class="c"><h3>Результат: ${Q.ok}/${Q.d.quiz.length}</h3><p>Теперь главное: используй правило сама. Напиши 3 своих предложения по теме «${Q.t}» (про музыку, жизнь, план
+function fin(){S.les[Q.t].done=1;sv();gain(20);$('#gram').innerHTML=`<div class="c"><h3>Результат: ${Q.ok}/${Q.d.quiz.length}</h3><p>Теперь главное
